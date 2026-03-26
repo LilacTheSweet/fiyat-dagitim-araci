@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Fiyat Dağıtım Aracı</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="header">
+  <div class="sub">Birim Fiyat Optimizasyonu</div>
+  <div class="title-row">
+    <h1>Fiyat Dağıtım Aracı</h1>
+    <button class="btn btn-outline btn-sm hidden" id="btnReset">← Yeni Dosya</button>
+  </div>
+</div>
+
+<div class="drop-zone" id="dropZone">
+  <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
+  <div class="icon">📂</div>
+  <h2>Excel dosyasını seç veya sürükle</h2>
+  <p>.xlsx / .xls desteklenir</p>
+</div>
+
+<div class="err hidden" id="errorBox"></div>
+
+<div class="card hidden" id="sheetCard">
+  <div class="sheet-row">
+    <div class="sheet-sel">
+      <label class="lbl">Sekme / Sayfa</label>
+      <select id="sheetSelect"></select>
+    </div>
+    <div class="status-txt" id="statusRow"></div>
+  </div>
+  <div class="dbg hidden" id="debugBox"></div>
+</div>
+
+<div class="card hidden" id="controlCard">
+  <div class="grid-controls">
+    <div>
+      <label class="lbl">Hedef Artış</label>
+      <div class="num-input-wrap"><input type="number" id="targetPct" value="10" step="0.5" min="0" max="50"></div>
+      <input type="range" id="rangeTarget" min="0" max="50" step="0.5" value="10">
+      <div class="pct-display" style="color:#f0a500" id="lblTarget">10%</div>
+    </div>
+    <div>
+      <label class="lbl">Min. Değişim</label>
+      <div class="num-input-wrap"><input type="number" id="minDelta" value="-5" step="1" min="-50" max="0"></div>
+      <input type="range" id="rangeMin" min="-50" max="0" step="1" value="-5">
+      <div class="pct-display" style="color:#ef5350" id="lblMin">-5%</div>
+    </div>
+    <div>
+      <label class="lbl">Max. Değişim</label>
+      <div class="num-input-wrap"><input type="number" id="maxDelta" value="25" step="1" min="0" max="100"></div>
+      <input type="range" id="rangeMax" min="0" max="100" step="1" value="25">
+      <div class="pct-display" style="color:#4caf50" id="lblMax">25%</div>
+    </div>
+    <div>
+      <label class="lbl">Yuvarlama</label>
+      <select id="roundStep">
+        <option value="0.01">0.01 TL</option>
+        <option value="0.1">0.10 TL</option>
+        <option value="0.5">0.50 TL</option>
+        <option value="1" selected>1 TL</option>
+        <option value="5">5 TL</option>
+        <option value="10">10 TL</option>
+        <option value="50">50 TL</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="action-row hidden" id="actionRow">
+  <button class="btn btn-gold" id="btnDist">&#9654; Dağıt</button>
+  <button class="btn btn-outline hidden" id="btnReDist">&#8635; Yeniden</button>
+  <span class="hidden" id="rangeWarn" style="color:#ef5350;font-size:12px">&#9888; Min &lt; Max olmalı</span>
+</div>
+
+<div class="warn hidden" id="distWarn"></div>
+
+<div class="grid-stat hidden" id="summaryCard">
+  <div class="stat-cell"><div class="stat-label">Orijinal Toplam</div><div class="stat-value" id="sOrig" style="color:#888"></div></div>
+  <div class="stat-cell"><div class="stat-label">Yeni Toplam</div><div class="stat-value" id="sNew" style="color:#fff"></div></div>
+  <div class="stat-cell"><div class="stat-label">Gerçekleşen</div><div class="stat-value" id="sAch"></div></div>
+  <div class="stat-cell"><div class="stat-label">Fark</div><div class="stat-value" id="sDiff" style="color:#f0a500"></div></div>
+</div>
+
+<div class="tbl-wrap hidden" id="tableWrap">
+  <table>
+    <thead><tr>
+      <th class="l">#</th><th class="l">ÜRÜN ADI</th><th class="l">BİRİM</th>
+      <th class="r">MİKTAR</th><th class="r">ESKİ FİYAT</th><th class="r">YENİ FİYAT</th>
+      <th class="r">DEĞİŞİM</th><th class="r">ESKİ TUTAR</th><th class="r">YENİ TUTAR</th><th class="r">FARK</th>
+    </tr></thead>
+    <tbody id="tableBody"></tbody>
+    <tfoot><tr>
+      <td colspan="7" style="color:#888;font-size:11px">TOPLAM (KDV HARİÇ)</td>
+      <td class="r" id="ftOrig" style="color:#888;font-weight:600"></td>
+      <td class="r" id="ftNew" style="color:#fff;font-weight:600"></td>
+      <td class="r" id="ftDiff" style="color:#f0a500;font-weight:600"></td>
+    </tr></tfoot>
+  </table>
+</div>
+
+<div class="card-list hidden" id="cardList"></div>
+
+<div class="hidden" id="bottomActions" style="margin-top:16px">
+  <button class="btn btn-outline" id="btnCopy" style="width:100%">📋 Kopyala</button>
+</div>
+
+<script src="pricing-engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

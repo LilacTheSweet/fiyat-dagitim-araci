@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Fiyat Dağıtım Aracı</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Mono','Courier New',monospace;background:#0f0f0f;color:#e0e0e0;min-height:100vh;padding:20px}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:#1a1a1a}::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+
+input[type=number],select{background:#1e1e1e;border:1px solid #333;color:#e0e0e0;padding:10px 12px;border-radius:6px;font-family:inherit;font-size:14px;width:100%;outline:none;transition:border-color .15s;-webkit-appearance:none}
+input[type=number]:focus,select:focus{border-color:#f0a500}
+input[type=range]{width:100%;accent-color:#f0a500;cursor:pointer;margin-top:10px;height:24px}
+
+.btn{border:none;padding:13px 22px;font-family:inherit;font-size:14px;font-weight:600;border-radius:6px;cursor:pointer;transition:all .15s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.btn-gold{background:#f0a500;color:#0f0f0f}.btn-gold:active{background:#d09000}
+.btn-gold:disabled{background:#5a4000;color:#333;cursor:not-allowed}
+.btn-outline{background:transparent;color:#888;border:1px solid #333}.btn-outline:active{border-color:#888;color:#e0e0e0}
+.btn-sm{padding:10px 16px;font-size:13px}
+
+.tag-pos{background:#1a3320;color:#4caf50;padding:3px 9px;border-radius:12px;font-size:12px;display:inline-block}
+.tag-neg{background:#3a1a1a;color:#ef5350;padding:3px 9px;border-radius:12px;font-size:12px;display:inline-block}
+.tag-neu{background:#1e1e1e;color:#888;padding:3px 9px;border-radius:12px;font-size:12px;display:inline-block}
+
+.drop-zone{border:2px dashed #2a2a2a;border-radius:12px;padding:52px 20px;text-align:center;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.drop-zone:hover,.drop-zone.drag{border-color:#f0a500;background:#1a1500}
+.drop-zone .icon{font-size:44px;margin-bottom:12px}
+.drop-zone h2{font-family:'IBM Plex Sans',sans-serif;font-size:15px;color:#888;font-weight:400}
+.drop-zone p{font-size:12px;color:#555;margin-top:8px}
+
+.lbl{font-size:11px;color:#666;letter-spacing:.1em;display:block;margin-bottom:8px;text-transform:uppercase}
+.card{background:#141414;border:1px solid #222;border-radius:10px;padding:18px;margin-bottom:16px}
+.pct-display{font-size:12px;text-align:right;margin-top:5px;font-weight:600}
+
+.grid-controls{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.grid-stat{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#222;border-radius:10px;overflow:hidden;margin-bottom:16px}
+.stat-cell{background:#141414;padding:14px 16px}
+.stat-label{font-size:10px;color:#555;letter-spacing:.1em;margin-bottom:6px;text-transform:uppercase}
+.stat-value{font-size:15px;font-weight:600}
+
+.action-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.ml-auto{margin-left:auto}
+
+.dbg{background:#1a1200;border:1px solid #3a2800;border-radius:6px;padding:12px 16px;font-size:11px;color:#a07020;margin-top:10px;line-height:1.8;white-space:pre-wrap;word-break:break-all}
+.err{background:#2a1111;border:1px solid #5a2020;border-radius:8px;padding:12px 16px;color:#ef5350;font-size:13px;margin-bottom:14px}
+
+#header{margin-bottom:20px;border-bottom:1px solid #1e1e1e;padding-bottom:16px}
+#header .sub{font-size:11px;color:#444;letter-spacing:.15em;text-transform:uppercase;margin-bottom:5px}
+#header .title-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+h1{font-family:'IBM Plex Sans',sans-serif;font-size:20px;font-weight:600;color:#fff}
+
+.sheet-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.sheet-sel{min-width:180px;flex:0 0 auto}
+.status-txt{font-size:13px;line-height:1.9;padding-top:28px}
+
+/* Desktop table */
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid #1e1e1e}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:#141414;border-bottom:1px solid #222}
+th{padding:11px 13px;color:#888;font-weight:500;font-size:10px;white-space:nowrap;letter-spacing:.08em}
+th.r{text-align:right}th.l{text-align:left}
+tbody tr{border-bottom:1px solid #1a1a1a}
+tbody tr:hover td{background:#161616}
+td{padding:11px 13px}
+td.r{text-align:right}
+tfoot tr{background:#141414;border-top:2px solid #2a2a2a}
+tfoot td{padding:12px 13px}
+
+/* Mobile cards */
+.card-list{display:none}
+.item-card{background:#141414;border:1px solid #222;border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.item-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px}
+.item-name{font-size:14px;color:#e0e0e0;font-weight:500;flex:1;line-height:1.4}
+.item-num{font-size:11px;color:#444;flex-shrink:0;padding-top:2px}
+.item-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.f-lbl{font-size:10px;color:#555;letter-spacing:.08em;margin-bottom:3px;text-transform:uppercase}
+.f-val{font-size:13px;color:#c0c0c0}
+.f-val.accent{color:#fff;font-weight:600}
+.item-footer{margin-top:12px;padding-top:12px;border-top:1px solid #1e1e1e;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.item-footer .f-val{font-size:13px}
+.card-footer{background:#141414;border:1px solid #2a2a2a;border-radius:10px;padding:14px 16px;margin-top:4px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.cf-label{font-size:10px;color:#555;letter-spacing:.08em;margin-bottom:3px;text-transform:uppercase}
+.cf-val{font-size:14px;font-weight:600}
+
+.warn{background:#2a2200;border:1px solid #5a4800;border-radius:8px;padding:12px 16px;color:#f0a500;font-size:13px;margin-bottom:14px}
+
+.hidden{display:none!important}
+
+@media(max-width:680px){
+  body{padding:14px;padding-bottom:100px}
+  h1{font-size:17px}
+  .drop-zone{padding:40px 16px}
+  .drop-zone h2{font-size:14px}
+  .grid-controls{grid-template-columns:1fr 1fr;gap:12px}
+  .num-input-wrap{display:none}
+  input[type=range]{height:30px;-webkit-appearance:none;appearance:none;background:transparent}
+  input[type=range]::-webkit-slider-runnable-track{height:6px;background:#2a2a2a;border-radius:3px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:#f0a500;margin-top:-11px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  .btn{padding:14px 18px;font-size:14px;min-height:50px;display:inline-flex;align-items:center;justify-content:center}
+  .btn-sm{padding:12px 16px}
+  .grid-stat{grid-template-columns:1fr 1fr}
+  .stat-value{font-size:13px}
+  .action-row{gap:8px}
+  #btnCopy{width:100%;text-align:center;margin-left:0!important}
+  .tbl-wrap{display:none}
+  .card-list{display:block}
+  .sheet-row{flex-direction:column;gap:10px}
+  .sheet-sel{width:100%}
+  .status-txt{padding-top:0}
+  #bottomActions{position:sticky;bottom:0;z-index:10;background:#0f0f0f;padding:12px 16px;border-top:1px solid #1e1e1e;margin:0 -14px}
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="sub">Birim Fiyat Optimizasyonu</div>
+  <div class="title-row">
+    <h1>Fiyat Dağıtım Aracı</h1>
+    <button class="btn btn-outline btn-sm hidden" id="btnReset" onclick="resetAll()">← Yeni Dosya</button>
+  </div>
+</div>
+
+<div class="drop-zone" id="dropZone"
+     onclick="document.getElementById('fileInput').click()"
+     ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)">
+  <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="onFileChange(event)">
+  <div class="icon">📂</div>
+  <h2>Excel dosyasını seç veya sürükle</h2>
+  <p>.xlsx / .xls desteklenir</p>
+</div>
+
+<div class="err hidden" id="errorBox"></div>
+
+<div class="card hidden" id="sheetCard">
+  <div class="sheet-row">
+    <div class="sheet-sel">
+      <label class="lbl">Sekme / Sayfa</label>
+      <select id="sheetSelect" onchange="onSheetChange()"></select>
+    </div>
+    <div class="status-txt" id="statusRow"></div>
+  </div>
+  <div class="dbg hidden" id="debugBox"></div>
+</div>
+
+<div class="card hidden" id="controlCard">
+  <div class="grid-controls">
+    <div>
+      <label class="lbl">Hedef Artış</label>
+      <div class="num-input-wrap"><input type="number" id="targetPct" value="10" step="0.5" min="0" max="50" oninput="syncRange('targetPct','rangeTarget')"></div>
+      <input type="range" id="rangeTarget" min="0" max="50" step="0.5" value="10" oninput="syncNum('rangeTarget','targetPct')">
+      <div class="pct-display" style="color:#f0a500" id="lblTarget">10%</div>
+    </div>
+    <div>
+      <label class="lbl">Min. Değişim</label>
+      <div class="num-input-wrap"><input type="number" id="minDelta" value="-5" step="1" min="-50" max="0" oninput="syncRange('minDelta','rangeMin')"></div>
+      <input type="range" id="rangeMin" min="-50" max="0" step="1" value="-5" oninput="syncNum('rangeMin','minDelta')">
+      <div class="pct-display" style="color:#ef5350" id="lblMin">-5%</div>
+    </div>
+    <div>
+      <label class="lbl">Max. Değişim</label>
+      <div class="num-input-wrap"><input type="number" id="maxDelta" value="25" step="1" min="0" max="100" oninput="syncRange('maxDelta','rangeMax')"></div>
+      <input type="range" id="rangeMax" min="0" max="100" step="1" value="25" oninput="syncNum('rangeMax','maxDelta')">
+      <div class="pct-display" style="color:#4caf50" id="lblMax">25%</div>
+    </div>
+    <div>
+      <label class="lbl">Yuvarlama</label>
+      <select id="roundStep">
+        <option value="0.01">0.01 TL</option>
+        <option value="0.1">0.10 TL</option>
+        <option value="0.5">0.50 TL</option>
+        <option value="1" selected>1 TL</option>
+        <option value="5">5 TL</option>
+        <option value="10">10 TL</option>
+        <option value="50">50 TL</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="action-row hidden" id="actionRow">
+  <button class="btn btn-gold" id="btnDist" onclick="runDistribute()">&#9654; Dağıt</button>
+  <button class="btn btn-outline hidden" id="btnReDist" onclick="runDistribute()">&#8635; Yeniden</button>
+  <span class="hidden" id="rangeWarn" style="color:#ef5350;font-size:12px">&#9888; Min &lt; Max olmalı</span>
+</div>
+
+<div class="warn hidden" id="distWarn"></div>
+
+<div class="grid-stat hidden" id="summaryCard">
+  <div class="stat-cell"><div class="stat-label">Orijinal Toplam</div><div class="stat-value" id="sOrig" style="color:#888"></div></div>
+  <div class="stat-cell"><div class="stat-label">Yeni Toplam</div><div class="stat-value" id="sNew" style="color:#fff"></div></div>
+  <div class="stat-cell"><div class="stat-label">Gerçekleşen</div><div class="stat-value" id="sAch"></div></div>
+  <div class="stat-cell"><div class="stat-label">Fark</div><div class="stat-value" id="sDiff" style="color:#f0a500"></div></div>
+</div>
+
+<div class="tbl-wrap hidden" id="tableWrap">
+  <table>
+    <thead><tr>
+      <th class="l">#</th><th class="l">ÜRÜN ADI</th><th class="l">BİRİM</th>
+      <th class="r">MİKTAR</th><th class="r">ESKİ FİYAT</th><th class="r">YENİ FİYAT</th>
+      <th class="r">DEĞİŞİM</th><th class="r">ESKİ TUTAR</th><th class="r">YENİ TUTAR</th><th class="r">FARK</th>
+    </tr></thead>
+    <tbody id="tableBody"></tbody>
+    <tfoot><tr>
+      <td colspan="7" style="color:#888;font-size:11px">TOPLAM (KDV HARİÇ)</td>
+      <td class="r" id="ftOrig" style="color:#888;font-weight:600"></td>
+      <td class="r" id="ftNew" style="color:#fff;font-weight:600"></td>
+      <td class="r" id="ftDiff" style="color:#f0a500;font-weight:600"></td>
+    </tr></tfoot>
+  </table>
+</div>
+
+<div class="card-list hidden" id="cardList"></div>
+
+<div class="hidden" id="bottomActions" style="margin-top:16px">
+  <button class="btn btn-outline" id="btnCopy" onclick="copyPrices()" style="width:100%">📋 Kopyala</button>
+</div>
+
+<script>
+let wb=null,parsedItems=[],lastResult=[];
+
+function norm(s){
+  return String(s??'')
+    .replace(/İ/g,'i').replace(/I/g,'i')
+    .replace(/Ü/g,'u').replace(/Ö/g,'o')
+    .replace(/Ğ/g,'g').replace(/Ş/g,'s').replace(/Ç/g,'c')
+    .toLowerCase()
+    .replace(/ü/g,'u').replace(/ö/g,'o').replace(/ı/g,'i')
+    .replace(/ğ/g,'g').replace(/ş/g,'s').replace(/ç/g,'c')
+    .trim();
+}
+function fmt(n){return Number(n).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function fmtPct(n){return(n>=0?'+':'')+(n*100).toFixed(1)+'%'}
+function roundTo(v,s){return Math.round(v/s)*s}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function toNum(v){
+  if(v===null||v===undefined||v==='')return NaN;
+  if(typeof v==='number')return v;
+  if(typeof v==='string'){if(v.startsWith('='))return NaN;return parseFloat(v.replace(/\./g,'').replace(',','.'))}
+  return NaN;
+}
+function toStr(v){if(v===null||v===undefined)return '';const s=String(v).trim();return s.startsWith('=')?'':s}
+
+const ALIASES={
+  name:['urun adi','malzeme adi','malzeme','aciklama','kalem'],
+  unit:['birim'],qty:['miktar','adet'],price:['birim fiyat','birim fyat']
+};
+function detectCol(nh,key){
+  const al=[...ALIASES[key]].sort((a,b)=>b.length-a.length);
+  return nh.findIndex(h=>al.some(a=>h.includes(a)));
+}
+
+function parseSheet(workbook,sheetName){
+  const ws=workbook.Sheets[sheetName];
+  if(!ws)return{items:[],debug:'Sekme bulunamadı'};
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',blankrows:false});
+  if(rows.length<2)return{items:[],debug:'Sayfa boş'};
+  let hi=-1;
+  for(let i=0;i<Math.min(rows.length,20);i++){
+    const nr=rows[i].map(c=>norm(c));
+    if((nr.some(c=>c.includes('birim fiyat'))||nr.some(c=>c==='miktar'))&&nr.some(c=>c.includes('urun')||c.includes('malzeme'))){hi=i;break}
+  }
+  if(hi===-1){
+    const p=rows.slice(0,5).map((r,i)=>'Satır '+(i+1)+': ['+r.slice(0,8).map(c=>toStr(c)||'—').join(' | ')+']').join('\n');
+    return{items:[],debug:'Başlık satırı bulunamadı.\n'+p};
+  }
+  const nh=rows[hi].map(h=>norm(h));
+  const nc=detectCol(nh,'name'),uc=detectCol(nh,'unit'),qc=detectCol(nh,'qty'),pc=detectCol(nh,'price');
+  if(nc<0||qc<0||pc<0)return{items:[],debug:'Sütun eşleştirilemedi: Ad='+nc+' Miktar='+qc+' Fiyat='+pc+'\n'+nh.join(' | ')};
+  const items=[],sk=[];
+  for(let r=hi+1;r<rows.length;r++){
+    const row=rows[r];
+    const name=toStr(row[nc]),qty=toNum(row[qc]),price=toNum(row[pc]),unit=uc>=0?toStr(row[uc]):'';
+    if(!name)continue;
+    if(isNaN(qty)||qty<=0||isNaN(price)||price<=0){sk.push(r+1);continue}
+    items.push({id:items.length+1,name,birim:unit,qty,price});
+  }
+  return{items,nc,uc,qc,pc,skipped:sk};
+}
+
+function floorTo(v,s){return Math.floor(v/s)*s}
+function ceilTo(v,s){return Math.ceil(v/s)*s}
+function fp(v){return Math.round(v*1e10)/1e10} // float precision fix
+
+function distribute(items,targetPct,minPct,maxPct,roundStep){
+  const tot=items.reduce((s,it)=>s+it.price*it.qty,0);
+  if(!tot)return{rows:items.map(it=>({...it,newPrice:it.price,actualChange:0,tutar:0,newTutar:0})),warning:null};
+  const n=items.length;
+  const w=i=>items[i].price*items[i].qty;
+  const wavg=()=>items.reduce((s,_,i)=>s+w(i)*ch[i],0)/tot;
+
+  // 1. Her kaleme [minPct, maxPct] aralığında uniform rastgele yüzde ata
+  const range=maxPct-minPct;
+  let ch=items.map(()=>minPct+Math.random()*range);
+
+  // 2. Ağırlıklı ortalamayı targetPct'ye shift et
+  const shift=targetPct-wavg();
+  ch=ch.map(c=>c+shift);
+
+  // 3. Klipleme + yeniden dağıtım (iteratif)
+  for(let pass=0;pass<30;pass++){
+    let clipped=false;
+    ch=ch.map(c=>{
+      if(c<minPct){clipped=true;return minPct}
+      if(c>maxPct){clipped=true;return maxPct}
+      return c;
+    });
+    if(!clipped)break;
+    const gap=targetPct-wavg();
+    if(Math.abs(gap)<0.0001)break;
+    const free=[];
+    for(let i=0;i<n;i++){
+      if(gap>0&&ch[i]<maxPct-1e-9)free.push(i);
+      else if(gap<0&&ch[i]>minPct+1e-9)free.push(i);
+    }
+    const freeW=free.reduce((s,i)=>s+w(i),0);
+    if(freeW<1e-9)break;
+    const adj=gap*tot/freeW;
+    free.forEach(i=>{ch[i]+=adj});
+  }
+
+  // 4. 0'a çok yakın olanları kaydır
+  ch=ch.map(c=>{
+    if(c>-0.003&&c<0.003)return c>=0?0.005:-0.005;
+    return c;
+  });
+
+  // absMin: minPct sınırını AŞMAYACAK şekilde yukarı yuvarla (ceil)
+  // absMax: maxPct sınırını AŞMAYACAK şekilde aşağı yuvarla (floor)
+  function getAbsMin(price){return Math.max(roundStep, fp(ceilTo(price*(1+minPct),roundStep)))}
+  function getAbsMax(price){return fp(floorTo(price*(1+maxPct),roundStep))}
+
+  // 5. Yuvarlama + orijinal fiyata eşit kalmama garantisi
+  const rows=items.map((it,i)=>{
+    let np=fp(roundTo(it.price*(1+ch[i]),roundStep));
+    let absMin=getAbsMin(it.price);
+    let absMax=getAbsMax(it.price);
+
+    // Edge case: roundStep fiyata göre çok büyükse, geçerli aralık olmayabilir
+    if(absMax<roundStep)absMax=roundStep;
+    if(absMin>absMax){const t=absMin;absMin=absMax;absMax=t}
+
+    // Sınırlar içinde tut
+    np=Math.max(absMin,Math.min(absMax,np));
+
+    if(np===it.price){
+      if(ch[i]>=0){
+        const up=fp(it.price+roundStep);
+        np=(up<=absMax)?up:absMax;
+      }else{
+        const down=fp(it.price-roundStep);
+        np=(down>=absMin&&down>0)?down:((fp(it.price+roundStep)<=absMax)?fp(it.price+roundStep):absMax);
+      }
+    }
+
+    return{...it,newPrice:np,actualChange:(np-it.price)/it.price,tutar:it.price*it.qty,newTutar:fp(np*it.qty)};
+  });
+
+  // 6. Yuvarlama sonrası correction — yön korunarak
+  const targetTotal=tot*(1+targetPct);
+  for(let pass=0;pass<15;pass++){
+    const curTotal=rows.reduce((s,r)=>s+r.newTutar,0);
+    const gap=targetTotal-curTotal;
+    if(Math.abs(gap)<roundStep*0.5)break;
+
+    const adjustable=rows.map((r,i)=>{
+      let absMin=getAbsMin(items[i].price);
+      let absMax=getAbsMax(items[i].price);
+      if(absMax<roundStep)absMax=roundStep;
+      if(absMin>absMax){const t=absMin;absMin=absMax;absMax=t}
+      let floor,ceil;
+      if(r.newPrice>items[i].price){
+        floor=fp(items[i].price+roundStep);
+        if(floor>absMax)floor=absMax;
+        ceil=absMax;
+      }else if(r.newPrice<items[i].price){
+        floor=absMin;
+        ceil=fp(items[i].price-roundStep);
+        if(ceil<absMin)ceil=absMin;
+      }else{
+        return null; // orijinal fiyatta — ayarlanamaz
+      }
+      if(floor>ceil)return null;
+      const room=gap>0?(ceil-r.newPrice):(r.newPrice-floor);
+      return{idx:i,room,qty:r.qty,floor,ceil};
+    }).filter(a=>a&&a.room>roundStep*0.1);
+    if(!adjustable.length)break;
+
+    const totalRoom=adjustable.reduce((s,a)=>s+a.room*a.qty,0);
+    if(totalRoom<1e-9)break;
+    for(const a of adjustable){
+      const share=(a.room*a.qty/totalRoom)*gap;
+      const steps=Math.round(share/(a.qty*roundStep));
+      if(steps===0)continue;
+      const r=rows[a.idx];
+      r.newPrice=fp(Math.max(a.floor,Math.min(a.ceil,fp(r.newPrice+steps*roundStep))));
+      if(r.newPrice===items[a.idx].price){
+        r.newPrice=gap>0?Math.min(a.ceil,fp(r.newPrice+roundStep)):Math.max(a.floor,fp(r.newPrice-roundStep));
+      }
+      r.actualChange=(r.newPrice-items[a.idx].price)/items[a.idx].price;
+      r.newTutar=fp(r.newPrice*r.qty);
+    }
+  }
+
+  // 7. Hedefe ulaşılıp ulaşılmadığını kontrol et
+  const finalTotal=rows.reduce((s,r)=>s+r.newTutar,0);
+  const achievedPct=(finalTotal-tot)/tot;
+  let warning=null;
+  if(Math.abs(achievedPct-targetPct)>=0.005){
+    warning='Yuvarlama ve sınır kısıtları nedeniyle hedefe tam ulaşılamadı. Gerçekleşen: '+(achievedPct>=0?'+':'')+(achievedPct*100).toFixed(1)+'% (Hedef: '+(targetPct>=0?'+':'')+(targetPct*100).toFixed(1)+'%)';
+  }
+
+  return{rows,warning};
+}
+
+function onFileChange(e){loadFile(e.target.files[0])}
+function onDragOver(e){e.preventDefault();document.getElementById('dropZone').classList.add('drag')}
+function onDragLeave(){document.getElementById('dropZone').classList.remove('drag')}
+function onDrop(e){e.preventDefault();onDragLeave();loadFile(e.dataTransfer.files[0])}
+
+function loadFile(file){
+  if(!file)return;setError('');
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      document.getElementById('sheetSelect').innerHTML=wb.SheetNames.map(s=>'<option value="'+esc(s)+'">'+esc(s)+'</option>').join('');
+      document.getElementById('dropZone').classList.add('hidden');
+      document.getElementById('btnReset').classList.remove('hidden');
+      document.getElementById('sheetCard').classList.remove('hidden');
+      applySheet(wb.SheetNames[0]);
+    }catch(err){setError('Dosya okunamadı: '+err.message)}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function onSheetChange(){applySheet(document.getElementById('sheetSelect').value);clearResults()}
+
+function applySheet(name){
+  const p=parseSheet(wb,name);
+  parsedItems=p.items||[];
+  const sr=document.getElementById('statusRow'),db=document.getElementById('debugBox');
+  if(parsedItems.length>0){
+    const ot=parsedItems.reduce((s,it)=>s+it.price*it.qty,0);
+    sr.innerHTML='<span style="color:#4caf50">&#10003;</span> <span style="color:#fff">'+parsedItems.length+' kalem</span> &nbsp;&middot;&nbsp; Toplam: <span style="color:#f0a500">'+fmt(ot)+' TL</span>'+(p.skipped?.length?' &nbsp;&middot;&nbsp; <span style="color:#555">'+p.skipped.length+' satır atlandı</span>':'');
+    db.classList.add('hidden');
+    document.getElementById('controlCard').classList.remove('hidden');
+    document.getElementById('actionRow').classList.remove('hidden');
+  }else{
+    sr.innerHTML='<span style="color:#ef5350">&#10007; Okunabilir kalem bulunamadı</span>';
+    if(p.debug){db.textContent=p.debug;db.classList.remove('hidden')}
+    document.getElementById('controlCard').classList.add('hidden');
+    document.getElementById('actionRow').classList.add('hidden');
+  }
+}
+
+function clampInput(id){
+  const el=document.getElementById(id);
+  const mn=parseFloat(el.min),mx=parseFloat(el.max);
+  let v=parseFloat(el.value);
+  if(isNaN(v))return;
+  if(!isNaN(mn)&&v<mn){v=mn;el.value=v}
+  if(!isNaN(mx)&&v>mx){v=mx;el.value=v}
+}
+function syncRange(ni,ri){clampInput(ni);document.getElementById(ri).value=document.getElementById(ni).value;updateLabels()}
+function syncNum(ri,ni){document.getElementById(ni).value=document.getElementById(ri).value;updateLabels()}
+function updateLabels(){
+  document.getElementById('lblTarget').textContent=document.getElementById('targetPct').value+'%';
+  document.getElementById('lblMin').textContent=document.getElementById('minDelta').value+'%';
+  document.getElementById('lblMax').textContent=document.getElementById('maxDelta').value+'%';
+  const mn=parseFloat(document.getElementById('minDelta').value),mx=parseFloat(document.getElementById('maxDelta').value);
+  document.getElementById('rangeWarn').classList.toggle('hidden',mn<mx);
+  document.getElementById('btnDist').disabled=mn>=mx;
+}
+
+function runDistribute(){
+  const target=parseFloat(document.getElementById('targetPct').value)/100;
+  const mn=parseFloat(document.getElementById('minDelta').value)/100;
+  const mx=parseFloat(document.getElementById('maxDelta').value)/100;
+  const step=parseFloat(document.getElementById('roundStep').value);
+  if(mn>=mx||!parsedItems.length)return;
+  const result=distribute(parsedItems,target,mn,mx,step);
+  lastResult=result.rows;
+  const warnEl=document.getElementById('distWarn');
+  if(result.warning){warnEl.innerHTML='&#9888; '+esc(result.warning);warnEl.classList.remove('hidden')}
+  else{warnEl.classList.add('hidden')}
+  renderResults();
+  document.getElementById('btnReDist').classList.remove('hidden');
+  document.getElementById('bottomActions').classList.remove('hidden');
+  document.getElementById('btnCopy').textContent='📋 Kopyala';
+}
+
+function renderResults(){
+  const res=lastResult;
+  const ot=res.reduce((s,it)=>s+it.tutar,0),nt=res.reduce((s,it)=>s+it.newTutar,0);
+  const ap=(nt-ot)/ot,tg=parseFloat(document.getElementById('targetPct').value)/100;
+  document.getElementById('sOrig').textContent=fmt(ot)+' TL';
+  document.getElementById('sNew').textContent=fmt(nt)+' TL';
+  const ae=document.getElementById('sAch');ae.textContent=fmtPct(ap);ae.style.color=Math.abs(ap-tg)<0.005?'#4caf50':'#f0a500';
+  document.getElementById('sDiff').textContent='+'+fmt(nt-ot)+' TL';
+  document.getElementById('summaryCard').classList.remove('hidden');
+
+  // Desktop table
+  document.getElementById('tableBody').innerHTML=res.map(it=>{
+    const d=it.newTutar-it.tutar,cls=it.actualChange>0.001?'tag-pos':it.actualChange<-0.001?'tag-neg':'tag-neu';
+    return '<tr><td style="color:#444">'+it.id+'</td><td style="color:#c0c0c0;min-width:240px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(it.name)+'">'+esc(it.name)+'</td><td style="color:#555">'+esc(it.birim)+'</td><td class="r" style="color:#888">'+it.qty+'</td><td class="r" style="color:#666">'+fmt(it.price)+'</td><td class="r" style="color:#fff;font-weight:600">'+fmt(it.newPrice)+'</td><td class="r"><span class="'+cls+'">'+fmtPct(it.actualChange)+'</span></td><td class="r" style="color:#555">'+fmt(it.tutar)+'</td><td class="r" style="color:#888">'+fmt(it.newTutar)+'</td><td class="r" style="color:'+(d>=0?'#4caf50':'#ef5350')+';font-size:12px">'+(d>=0?'+':'')+fmt(d)+'</td></tr>';
+  }).join('');
+  document.getElementById('ftOrig').textContent=fmt(ot);
+  document.getElementById('ftNew').textContent=fmt(nt);
+  document.getElementById('ftDiff').textContent='+'+fmt(nt-ot);
+  document.getElementById('tableWrap').classList.remove('hidden');
+
+  // Mobile cards
+  const cl=document.getElementById('cardList');
+  cl.innerHTML=res.map(it=>{
+    const d=it.newTutar-it.tutar,cls=it.actualChange>0.001?'tag-pos':it.actualChange<-0.001?'tag-neg':'tag-neu',dc=d>=0?'#4caf50':'#ef5350';
+    return '<div class="item-card"><div class="item-card-top"><div class="item-name">'+esc(it.name)+'</div><div class="item-num">#'+it.id+'</div></div><div class="item-grid"><div><div class="f-lbl">Miktar / Birim</div><div class="f-val">'+it.qty+' '+esc(it.birim)+'</div></div><div><div class="f-lbl">Değişim</div><div class="f-val"><span class="'+cls+'">'+fmtPct(it.actualChange)+'</span></div></div><div><div class="f-lbl">Eski Fiyat</div><div class="f-val">'+fmt(it.price)+' TL</div></div><div><div class="f-lbl">Yeni Fiyat</div><div class="f-val accent">'+fmt(it.newPrice)+' TL</div></div></div><div class="item-footer"><div><div class="f-lbl">Eski Tutar</div><div class="f-val" style="color:#666">'+fmt(it.tutar)+' TL</div></div><div style="text-align:center"><div class="f-lbl">Yeni Tutar</div><div class="f-val" style="color:#aaa">'+fmt(it.newTutar)+' TL</div></div><div style="text-align:right"><div class="f-lbl">Fark</div><div class="f-val" style="color:'+dc+';font-weight:600">'+(d>=0?'+':'')+fmt(d)+' TL</div></div></div></div>';
+  }).join('')+'<div class="card-footer"><div><div class="cf-label">Orijinal Toplam</div><div class="cf-val" style="color:#888">'+fmt(ot)+' TL</div></div><div style="text-align:center"><div class="cf-label">Yeni Toplam</div><div class="cf-val" style="color:#fff">'+fmt(nt)+' TL</div></div><div style="text-align:right"><div class="cf-label">Fark</div><div class="cf-val" style="color:#f0a500">+'+fmt(nt-ot)+' TL</div></div></div>';
+  cl.classList.remove('hidden');
+}
+
+function copyPrices(){
+  if(!lastResult.length)return;
+  const text=lastResult.map(it=>String(it.newPrice)).join('\n');
+  const btn=document.getElementById('btnCopy');
+  const done=()=>{btn.textContent='✓ Kopyalandı';setTimeout(()=>{btn.textContent='📋 Kopyala'},2500)};
+  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
+  else fallbackCopy(text,done);
+}
+function fallbackCopy(text,done){
+  const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+  document.body.appendChild(ta);ta.focus();ta.select();
+  try{document.execCommand('copy');done()}catch(e){}
+  document.body.removeChild(ta);
+}
+
+function clearResults(){
+  lastResult=[];
+  ['summaryCard','tableWrap','cardList','btnReDist','bottomActions','distWarn'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+}
+function resetAll(){
+  wb=null;parsedItems=[];clearResults();
+  document.getElementById('dropZone').classList.remove('hidden');
+  ['btnReset','sheetCard','controlCard','actionRow'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  document.getElementById('fileInput').value='';setError('');
+}
+function setError(msg){const el=document.getElementById('errorBox');el.innerHTML=msg?'&#9888; '+esc(msg):'';el.classList.toggle('hidden',!msg)}
+
+updateLabels();
+</script>
+</body>
+</html>
