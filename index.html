@@ -40,6 +40,10 @@
 </div>
 
 <div class="card hidden" id="controlCard">
+  <div class="control-header">
+    <span class="lbl" style="margin-bottom:0">Parametreler</span>
+    <button class="btn-link" id="btnResetSettings" title="Varsayılanlara dön">↺ Sıfırla</button>
+  </div>
   <div class="grid-controls">
     <div>
       <label class="lbl">Hedef Artış</label>
@@ -108,8 +112,9 @@
 
 <div class="card-list hidden" id="cardList"></div>
 
-<div class="hidden" id="bottomActions" style="margin-top:16px">
-  <button class="btn btn-outline" id="btnCopy" style="width:100%">📋 Kopyala</button>
+<div class="bottom-actions hidden" id="bottomActions">
+  <button class="btn btn-outline" id="btnCopy">📋 Kopyala</button>
+  <button class="btn btn-outline" id="btnExport">💾 CSV İndir</button>
 </div>
 
 <script src="pricing-engine.js"></script>

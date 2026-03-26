@@ -4,6 +4,25 @@ var distribute = PricingEngine.distribute;
 
 var wb=null,parsedItems=[],lastResult=[];
 
+// --- Toast notifications ---
+(function(){
+  var container=document.createElement('div');
+  container.className='toast-container';
+  document.body.appendChild(container);
+  window.showToast=function(msg,type,duration){
+    type=type||'info';duration=duration||2500;
+    var t=document.createElement('div');
+    t.className='toast toast-'+type;
+    t.textContent=msg;
+    container.appendChild(t);
+    requestAnimationFrame(function(){requestAnimationFrame(function(){t.classList.add('show')})});
+    setTimeout(function(){
+      t.classList.remove('show');
+      setTimeout(function(){container.removeChild(t)},350);
+    },duration);
+  };
+})();
+
 // --- Utility helpers ---
 function norm(s){
   return String(s??'')
@@ -144,7 +163,6 @@ function runDistribute(){
   renderResults();
   $('btnReDist').classList.remove('hidden');
   $('bottomActions').classList.remove('hidden');
-  $('btnCopy').textContent='📋 Kopyala';
 }
 
 function renderResults(){
@@ -180,16 +198,49 @@ function renderResults(){
 function copyPrices(){
   if(!lastResult.length)return;
   const text=lastResult.map(it=>String(it.newPrice)).join('\n');
-  const btn=$('btnCopy');
-  const done=()=>{btn.textContent='✓ Kopyalandı';setTimeout(()=>{btn.textContent='📋 Kopyala'},2500)};
-  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
-  else fallbackCopy(text,done);
+  const done=()=>showToast('Birim fiyatlar kopyalandı','success');
+  const fail=()=>showToast('Kopyalama başarısız','error');
+  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(done).catch(()=>{try{fallbackCopy(text,done)}catch(e){fail()}});
+  else{try{fallbackCopy(text,done)}catch(e){fail()}}
 }
 function fallbackCopy(text,done){
   const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;top:0;left:0;opacity:0;pointer-events:none';
   document.body.appendChild(ta);ta.focus();ta.select();
-  try{document.execCommand('copy');done()}catch(e){}
+  var ok=false;
+  try{ok=document.execCommand('copy')}catch(e){}
   document.body.removeChild(ta);
+  if(ok)done();else throw new Error('copy failed');
+}
+
+// --- CSV export ---
+function exportCSV(){
+  if(!lastResult.length)return;
+  var sep=';'; // Excel TR uses semicolon
+  var hdr=['#','Ürün Adı','Birim','Miktar','Eski Fiyat','Yeni Fiyat','Değişim (%)','Eski Tutar','Yeni Tutar','Fark'].join(sep);
+  var lines=lastResult.map(function(it){
+    return [it.id,'"'+it.name.replace(/"/g,'""')+'"',it.birim,it.qty,
+      it.price.toString().replace('.',','),
+      it.newPrice.toString().replace('.',','),
+      (it.actualChange*100).toFixed(1).replace('.',','),
+      it.tutar.toString().replace('.',','),
+      it.newTutar.toString().replace('.',','),
+      (it.newTutar-it.tutar).toFixed(2).replace('.',',')
+    ].join(sep);
+  });
+  var ot=lastResult.reduce(function(s,r){return s+r.tutar},0);
+  var nt=lastResult.reduce(function(s,r){return s+r.newTutar},0);
+  lines.push(['','TOPLAM','','','','','',ot.toFixed(2).replace('.',','),nt.toFixed(2).replace('.',','),(nt-ot).toFixed(2).replace('.',',')].join(sep));
+  var bom='\uFEFF'; // UTF-8 BOM for Excel
+  var csv=bom+hdr+'\r\n'+lines.join('\r\n')+'\r\n';
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  var sheetName=$('sheetSelect').value||'sonuc';
+  var date=new Date().toISOString().slice(0,10);
+  a.href=url;a.download='fiyat-dagitim_'+sheetName+'_'+date+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('CSV indirildi','success');
 }
 
 // --- State management ---
@@ -222,5 +273,45 @@ $('btnDist').addEventListener('click', runDistribute);
 $('btnReDist').addEventListener('click', runDistribute);
 $('btnReset').addEventListener('click', resetAll);
 $('btnCopy').addEventListener('click', copyPrices);
+$('btnExport').addEventListener('click', exportCSV);
 
+// --- Settings persistence (localStorage) ---
+var SETTINGS_KEY='fda_settings';
+var DEFAULTS={targetPct:'10',minDelta:'-5',maxDelta:'25',roundStep:'1'};
+function saveSettings(){
+  try{
+    var s={targetPct:$('targetPct').value,minDelta:$('minDelta').value,maxDelta:$('maxDelta').value,roundStep:$('roundStep').value};
+    localStorage.setItem(SETTINGS_KEY,JSON.stringify(s));
+  }catch(e){}
+}
+function loadSettings(){
+  try{
+    var raw=localStorage.getItem(SETTINGS_KEY);
+    if(!raw)return;
+    var s=JSON.parse(raw);
+    if(typeof s!=='object'||!s)return;
+    // Validate each field before applying
+    var tp=parseFloat(s.targetPct),mn=parseFloat(s.minDelta),mx=parseFloat(s.maxDelta);
+    if(!isNaN(tp)&&tp>=0&&tp<=50){$('targetPct').value=s.targetPct;$('rangeTarget').value=s.targetPct}
+    if(!isNaN(mn)&&mn>=-50&&mn<=0){$('minDelta').value=s.minDelta;$('rangeMin').value=s.minDelta}
+    if(!isNaN(mx)&&mx>=0&&mx<=100){$('maxDelta').value=s.maxDelta;$('rangeMax').value=s.maxDelta}
+    if(s.roundStep){var opt=$('roundStep').querySelector('option[value="'+s.roundStep+'"]');if(opt)$('roundStep').value=s.roundStep}
+  }catch(e){localStorage.removeItem(SETTINGS_KEY)}
+}
+function resetSettings(){
+  localStorage.removeItem(SETTINGS_KEY);
+  $('targetPct').value=DEFAULTS.targetPct;$('rangeTarget').value=DEFAULTS.targetPct;
+  $('minDelta').value=DEFAULTS.minDelta;$('rangeMin').value=DEFAULTS.minDelta;
+  $('maxDelta').value=DEFAULTS.maxDelta;$('rangeMax').value=DEFAULTS.maxDelta;
+  $('roundStep').value=DEFAULTS.roundStep;
+  updateLabels();
+  showToast('Ayarlar sıfırlandı','info');
+}
+// Save on every parameter change
+['targetPct','minDelta','maxDelta','roundStep'].forEach(function(id){
+  $(id).addEventListener('change',saveSettings);
+});
+$('btnResetSettings').addEventListener('click', resetSettings);
+
+loadSettings();
 updateLabels();
