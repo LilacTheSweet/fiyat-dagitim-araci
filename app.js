@@ -356,7 +356,6 @@ function loadSettings(){
     if(!raw)return;
     var s=JSON.parse(raw);
     if(typeof s!=='object'||!s)return;
-    // Validate each field before applying
     var tp=parseFloat(s.targetPct),mn=parseFloat(s.minDelta),mx=parseFloat(s.maxDelta);
     if(!isNaN(tp)&&tp>=0&&tp<=50){$('targetPct').value=s.targetPct;$('rangeTarget').value=s.targetPct}
     if(!isNaN(mn)&&mn>=-50&&mn<=0){$('minDelta').value=s.minDelta;$('rangeMin').value=s.minDelta}
@@ -371,13 +370,151 @@ function resetSettings(){
   $('maxDelta').value=DEFAULTS.maxDelta;$('rangeMax').value=DEFAULTS.maxDelta;
   $('roundStep').value=DEFAULTS.roundStep;
   updateLabels();
+  clearPresetSelection();
   showToast('Ayarlar sıfırlandı','info');
 }
-// Save on every parameter change
+
+// --- Preset / Profil sistemi ---
+var PRESETS_KEY='fda_presets';
+var ACTIVE_PRESET_KEY='fda_active_preset';
+var BUILTIN_PRESETS=[
+  {id:'builtin_default',name:'Varsayılan',isBuiltin:true,settings:{targetPct:'10',minDelta:'-5',maxDelta:'25',roundStep:'1'}},
+  {id:'builtin_narrow',name:'Dar Aralık',isBuiltin:true,settings:{targetPct:'5',minDelta:'-2',maxDelta:'8',roundStep:'1'}},
+  {id:'builtin_wide',name:'Geniş Aralık',isBuiltin:true,settings:{targetPct:'15',minDelta:'-20',maxDelta:'40',roundStep:'1'}}
+];
+function loadUserPresets(){
+  try{
+    var raw=localStorage.getItem(PRESETS_KEY);
+    if(!raw)return[];
+    var arr=JSON.parse(raw);
+    if(!Array.isArray(arr))throw new Error('not array');
+    return arr.filter(function(p){return p&&p.id&&p.name&&p.settings});
+  }catch(e){localStorage.removeItem(PRESETS_KEY);showToast('Profil verisi bozuk, sıfırlandı','error');return[]}
+}
+function saveUserPresets(presets){
+  try{localStorage.setItem(PRESETS_KEY,JSON.stringify(presets));return true}catch(e){showToast('Profiller kaydedilemedi','error');return false}
+}
+function getAllPresets(){return BUILTIN_PRESETS.concat(loadUserPresets())}
+function getActivePresetId(){return localStorage.getItem(ACTIVE_PRESET_KEY)||''}
+function setActivePresetId(id){try{if(id)localStorage.setItem(ACTIVE_PRESET_KEY,id);else localStorage.removeItem(ACTIVE_PRESET_KEY)}catch(e){}}
+
+function renderPresetDropdown(){
+  var sel=$('presetSelect');
+  var all=getAllPresets();
+  var activeId=getActivePresetId();
+  var userPresets=loadUserPresets();
+  var html='<option value="">\u2014 Profil se\u00e7 \u2014</option>';
+  html+='<optgroup label="Haz\u0131r">';
+  BUILTIN_PRESETS.forEach(function(p){html+='<option value="'+p.id+'">'+esc(p.name)+'</option>'});
+  html+='</optgroup>';
+  if(userPresets.length){
+    html+='<optgroup label="\u00d6zel">';
+    userPresets.forEach(function(p){
+      var display=p.name.length>40?p.name.substring(0,37)+'...':p.name;
+      html+='<option value="'+p.id+'">'+esc(display)+'</option>';
+    });
+    html+='</optgroup>';
+  }
+  sel.innerHTML=html;
+  // Restore active preset if still exists
+  if(activeId){
+    var exists=all.some(function(p){return p.id===activeId});
+    if(exists)sel.value=activeId;else setActivePresetId('');
+  }
+  updateDeleteButton();
+}
+function applySettings(s){
+  $('targetPct').value=s.targetPct;$('rangeTarget').value=s.targetPct;
+  $('minDelta').value=s.minDelta;$('rangeMin').value=s.minDelta;
+  $('maxDelta').value=s.maxDelta;$('rangeMax').value=s.maxDelta;
+  if(s.roundStep){var opt=$('roundStep').querySelector('option[value="'+s.roundStep+'"]');if(opt)$('roundStep').value=s.roundStep}
+  updateLabels();
+  saveSettings();
+}
+function applyPreset(id){
+  var all=getAllPresets();
+  var p=null;
+  for(var i=0;i<all.length;i++){if(all[i].id===id){p=all[i];break}}
+  if(!p)return;
+  applySettings(p.settings);
+  setActivePresetId(id);
+  updateDeleteButton();
+}
+function onPresetChange(){
+  var id=$('presetSelect').value;
+  if(!id){setActivePresetId('');updateDeleteButton();return}
+  applyPreset(id);
+}
+function onSavePreset(){
+  var selId=$('presetSelect').value;
+  var userPresets=loadUserPresets();
+  var isUserPreset=selId&&userPresets.some(function(p){return p.id===selId});
+  var currentSettings={targetPct:$('targetPct').value,minDelta:$('minDelta').value,maxDelta:$('maxDelta').value,roundStep:$('roundStep').value};
+
+  if(isUserPreset){
+    // Overwrite existing user preset
+    var existing=null;
+    for(var i=0;i<userPresets.length;i++){if(userPresets[i].id===selId){existing=userPresets[i];break}}
+    if(!existing)return;
+    if(!confirm('"'+existing.name+'" profilinin üzerine yazılsın mı?'))return;
+    existing.settings=currentSettings;
+    if(!saveUserPresets(userPresets))return;
+    setActivePresetId(selId);
+    showToast('Profil güncellendi','success');
+  }else{
+    // Create new preset
+    var name=prompt('Profil adı:');
+    if(!name||!name.trim()){if(name!==null)showToast('Profil adı boş olamaz','error');return}
+    name=name.trim();
+    var newPreset={id:'preset_'+Date.now(),name:name,isBuiltin:false,settings:currentSettings};
+    userPresets.push(newPreset);
+    if(!saveUserPresets(userPresets))return;
+    renderPresetDropdown();
+    $('presetSelect').value=newPreset.id;
+    setActivePresetId(newPreset.id);
+    updateDeleteButton();
+    showToast('"'+name+'" kaydedildi','success');
+  }
+}
+function onDeletePreset(){
+  var selId=$('presetSelect').value;
+  if(!selId)return;
+  var userPresets=loadUserPresets();
+  var idx=-1;
+  for(var i=0;i<userPresets.length;i++){if(userPresets[i].id===selId){idx=i;break}}
+  if(idx<0)return; // builtin or not found
+  if(!confirm('"'+userPresets[idx].name+'" profili silinsin mi?'))return;
+  userPresets.splice(idx,1);
+  if(!saveUserPresets(userPresets))return;
+  setActivePresetId('');
+  renderPresetDropdown();
+  showToast('Profil silindi','info');
+}
+function clearPresetSelection(){
+  $('presetSelect').value='';
+  setActivePresetId('');
+  updateDeleteButton();
+}
+function updateDeleteButton(){
+  var selId=$('presetSelect').value;
+  var userPresets=loadUserPresets();
+  var isUser=selId&&userPresets.some(function(p){return p.id===selId});
+  $('btnDeletePreset').style.display=isUser?'inline-block':'none';
+}
+
+// Save on every parameter change + clear preset selection on manual change
 ['targetPct','minDelta','maxDelta','roundStep'].forEach(function(id){
-  $(id).addEventListener('change',saveSettings);
+  $(id).addEventListener('change',function(){saveSettings();clearPresetSelection()});
+});
+// Range sliders: programmatic .value= doesn't fire events, so these only fire on user drag
+['rangeTarget','rangeMin','rangeMax'].forEach(function(id){
+  $(id).addEventListener('change',function(){saveSettings();clearPresetSelection()});
 });
 $('btnResetSettings').addEventListener('click', resetSettings);
+$('presetSelect').addEventListener('change', onPresetChange);
+$('btnSavePreset').addEventListener('click', onSavePreset);
+$('btnDeletePreset').addEventListener('click', onDeletePreset);
 
 loadSettings();
 updateLabels();
+renderPresetDropdown();
