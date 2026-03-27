@@ -243,6 +243,71 @@ function exportCSV(){
   showToast('CSV indirildi','success');
 }
 
+// --- XLSX export (uses the same SheetJS library already loaded for reading) ---
+function exportXLSX(){
+  if(!lastResult.length)return;
+  var header=['#','Ürün Adı','Birim','Miktar','Eski Fiyat','Yeni Fiyat','Değişim (%)','Eski Tutar','Yeni Tutar','Fark'];
+  var aoa=[header];
+  lastResult.forEach(function(it){
+    aoa.push([
+      it.id,
+      it.name,
+      it.birim,
+      it.qty,
+      it.price,
+      it.newPrice,
+      Math.round(it.actualChange*1000)/1000, // keep as number, format below
+      it.tutar,
+      it.newTutar,
+      Math.round((it.newTutar-it.tutar)*100)/100
+    ]);
+  });
+  var ot=lastResult.reduce(function(s,r){return s+r.tutar},0);
+  var nt=lastResult.reduce(function(s,r){return s+r.newTutar},0);
+  aoa.push(['','TOPLAM','','','','','',ot,nt,Math.round((nt-ot)*100)/100]);
+
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+
+  // Column widths
+  ws['!cols']=[
+    {wch:4},{wch:36},{wch:8},{wch:8},{wch:12},{wch:12},{wch:12},{wch:14},{wch:14},{wch:14}
+  ];
+
+  // Number formats for data rows (row 2 to n+1, 0-indexed row 1 to n)
+  var fmtMoney='#,##0.00';
+  var fmtPctXl='0.0%';
+  for(var r=1;r<=lastResult.length;r++){
+    // Eski Fiyat (col 4), Yeni Fiyat (col 5)
+    setCellFmt(ws,r,4,fmtMoney);
+    setCellFmt(ws,r,5,fmtMoney);
+    // Değişim as percentage
+    setCellFmt(ws,r,6,fmtPctXl);
+    // Eski Tutar (col 7), Yeni Tutar (col 8), Fark (col 9)
+    setCellFmt(ws,r,7,fmtMoney);
+    setCellFmt(ws,r,8,fmtMoney);
+    setCellFmt(ws,r,9,fmtMoney);
+  }
+  // TOPLAM row
+  var tr=lastResult.length+1;
+  setCellFmt(ws,tr,7,fmtMoney);
+  setCellFmt(ws,tr,8,fmtMoney);
+  setCellFmt(ws,tr,9,fmtMoney);
+
+  var sheetName=$('sheetSelect').value||'Sonuç';
+  // Sheet name max 31 chars, no invalid chars
+  var safeSheet=sheetName.replace(/[\\\/\?\*\[\]:]/g,'').substring(0,31)||'Sonuç';
+  var wbOut=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wbOut,ws,safeSheet);
+
+  var date=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wbOut,'fiyat-dagitim_'+safeSheet+'_'+date+'.xlsx');
+  showToast('Excel dosyası indirildi','success');
+}
+function setCellFmt(ws,r,c,fmt){
+  var addr=XLSX.utils.encode_cell({r:r,c:c});
+  if(ws[addr])ws[addr].z=fmt;
+}
+
 // --- State management ---
 function clearResults(){
   lastResult=[];
@@ -274,6 +339,7 @@ $('btnReDist').addEventListener('click', runDistribute);
 $('btnReset').addEventListener('click', resetAll);
 $('btnCopy').addEventListener('click', copyPrices);
 $('btnExport').addEventListener('click', exportCSV);
+$('btnExportXlsx').addEventListener('click', exportXLSX);
 
 // --- Settings persistence (localStorage) ---
 var SETTINGS_KEY='fda_settings';
