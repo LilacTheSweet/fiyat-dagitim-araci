@@ -1,0 +1,30 @@
+{
+  "name": "fiyat-dagitim-araci",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "node --test tests/pricing-engine.test.js",
+    "test:ui": "npx playwright test",
+    "serve": "npx serve -l 3000 -s ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LilacTheSweet/fiyat-dagitim-araci.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/LilacTheSweet/fiyat-dagitim-araci/issues"
+  },
+  "homepage": "https://github.com/LilacTheSweet/fiyat-dagitim-araci#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "serve": "^14.2.6"
+  }
+}
