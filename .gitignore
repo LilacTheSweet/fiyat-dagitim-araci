@@ -1,3 +1,5 @@
 node_modules/
 test-results/
 playwright-report/
+tests/local/*.local.json
+tests/fixtures/test-data-user*.xlsx

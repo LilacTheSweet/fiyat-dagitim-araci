@@ -1,0 +1,4 @@
+{
+  "excelPath": "C:\\Users\\KULLANICI\\Documents\\ihale-dosyasi.xlsx",
+  "_comment": "Bu dosyayı user-file.local.json olarak kopyalayıp kendi Excel path'inizi yazın. .local.json dosyası .gitignore'da olduğu için repoya girmez."
+}

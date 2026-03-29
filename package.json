@@ -8,7 +8,9 @@
   },
   "scripts": {
     "test": "node --test tests/pricing-engine.test.js",
-    "test:ui": "npx playwright test",
+    "test:ui": "npx playwright test tests/e2e/smoke.spec.js",
+    "test:regression": "npx playwright test tests/e2e/real-user-regression.spec.js",
+    "test:all": "npx playwright test",
     "serve": "npx serve -l 3000 -s ."
   },
   "repository": {
